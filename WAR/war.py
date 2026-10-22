@@ -5,21 +5,17 @@
 # ============================================================
 # JENIS HAZARD: WAR (Write After Read)
 #
-# Pengertian:
-# WAR adalah data hazard yang terjadi ketika sebuah instruksi
-# menulis register yang sebelumnya dibaca oleh instruksi lain.
+# WAR terjadi ketika instruksi berikutnya menulis register
+# yang sebelumnya telah dibaca oleh instruksi terdahulu.
 #
 # Tujuan:
-# 1. Mengidentifikasi dependensi WAR antar-instruksi.
+# 1. Mendeteksi dependensi WAR antar-instruksi.
 # 2. Menampilkan hasil analisis dependensi.
-# 3. Memvisualisasikan dependensi dalam bentuk grafik.
+# 3. Membuat dependency graph yang mudah dibaca.
 #
 # Mitigasi:
-# Register renaming dapat digunakan untuk menghindari WAR
-# dengan memisahkan register yang digunakan oleh instruksi.
-#
-# Catatan:
-# Program ini merupakan simulasi sederhana dependensi WAR.
+# Register renaming dapat menghilangkan dependensi WAR
+# dengan memisahkan register yang digunakan.
 # ============================================================
 
 from dataclasses import dataclass
@@ -39,7 +35,7 @@ class Instruction:
 
 
 # ------------------------------------------------------------
-# 2. CONTOH INSTRUCTION SET
+# 2. INSTRUCTION SET
 # ------------------------------------------------------------
 
 instructions = [
@@ -50,19 +46,19 @@ instructions = [
 
 
 # ------------------------------------------------------------
-# 3. DETEKSI WAR HAZARD
+# 3. DETEKSI WAR
 # ------------------------------------------------------------
 
 def detect_war(inst1, inst2):
     """
-    WAR terjadi ketika instruksi pertama membaca register
-    yang kemudian ditulis oleh instruksi kedua.
+    WAR terjadi jika instruksi pertama membaca register
+    yang ditulis oleh instruksi kedua.
     """
     return inst2.destination in inst1.sources
 
 
 # ------------------------------------------------------------
-# 4. ANALISIS DEPENDENSI DAN VISUALISASI
+# 4. ANALISIS DEPENDENSI WAR
 # ------------------------------------------------------------
 
 def show_war(instructions):
@@ -72,7 +68,7 @@ def show_war(instructions):
 
     graph = nx.DiGraph()
 
-    # Menambahkan seluruh instruksi ke grafik
+    # Tambahkan instruksi ke graph
     for inst in instructions:
         label = (
             f"{inst.name}\n"
@@ -83,7 +79,7 @@ def show_war(instructions):
 
     found = False
 
-    # Memeriksa dependensi antar-instruksi
+    # Periksa setiap pasangan instruksi sesuai urutan
     for i in range(len(instructions)):
         for j in range(i + 1, len(instructions)):
             first = instructions[i]
@@ -103,7 +99,6 @@ def show_war(instructions):
     if not found:
         print("Tidak ditemukan dependensi WAR.")
 
-    # Menampilkan keterangan instruksi
     print("\nDaftar instruksi:")
     for inst in instructions:
         print(
@@ -111,24 +106,28 @@ def show_war(instructions):
             f"{' + '.join(inst.sources)}"
         )
 
-    # Mengatur posisi node agar grafik mudah dibaca
-    positions = nx.spring_layout(
-        graph,
-        seed=42,
-        k=1.5
-    )
+    # --------------------------------------------------------
+    # 5. VISUALISASI GRAPH
+    # --------------------------------------------------------
+
+    # Posisi tetap agar node tidak terpotong dan mudah dibaca
+    positions = {
+        "I1": (0, 1),
+        "I2": (2, 1),
+        "I3": (0, 0),
+    }
 
     labels = nx.get_node_attributes(graph, "label")
 
-    # Membuat grafik
     fig, ax = plt.subplots(figsize=(10, 6))
 
     nx.draw_networkx_nodes(
         graph,
         positions,
-        node_size=3500,
+        node_size=4200,
         node_color="lightblue",
         edgecolors="black",
+        linewidths=1.5,
         ax=ax
     )
 
@@ -136,7 +135,8 @@ def show_war(instructions):
         graph,
         positions,
         labels=labels,
-        font_size=9,
+        font_size=10,
+        font_weight="normal",
         ax=ax
     )
 
@@ -144,15 +144,22 @@ def show_war(instructions):
         graph,
         positions,
         arrows=True,
+        arrowstyle="-|>",
         arrowsize=22,
+        width=1.8,
         edge_color="black",
-        connectionstyle="arc3,rad=0.05",
+        node_size=4200,
         ax=ax
     )
 
-    ax.set_title("WAR Dependency Graph", fontsize=14)
+    ax.set_title("WAR Dependency Graph", fontsize=14, pad=20)
+
+    # Ruang ekstra di sekeliling node
+    ax.set_xlim(-1.2, 3.2)
+    ax.set_ylim(-0.8, 2.0)
     ax.axis("off")
 
+    fig.tight_layout()
     fig.savefig(
         "war_graph.png",
         dpi=200,
@@ -164,7 +171,7 @@ def show_war(instructions):
 
 
 # ------------------------------------------------------------
-# 5. PROGRAM UTAMA
+# 6. PROGRAM UTAMA
 # ------------------------------------------------------------
 
 if __name__ == "__main__":
