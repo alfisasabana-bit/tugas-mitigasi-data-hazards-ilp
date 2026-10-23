@@ -1,0 +1,44 @@
+
+name: Run WAR Analysis
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'WAR/war.py'
+      - '.github/workflows/run-war.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install matplotlib networkx
+
+      - name: Run WAR analysis
+        env:
+          MPLBACKEND: Agg
+        run: python WAR/war.py
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasil-analisis-WAR
+          path: |
+            WAR/*.png
+            WAR/*.csv
+            WAR/*.txt
+          if-no-files-found: warn
