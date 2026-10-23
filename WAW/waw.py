@@ -85,7 +85,7 @@ def show_waw(instructions):
 
     labels = nx.get_node_attributes(graph, "label")
 
-    plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(12, 6))
 
     nx.draw_networkx_nodes(
         graph, pos,
@@ -112,6 +112,19 @@ def show_waw(instructions):
         node_size=4500
     )
 
+    # Label pada setiap panah dependensi
+    edge_labels = {
+        (first, second): f"WAW ({register})"
+        for first, second, register in dependencies
+    }
+
+    nx.draw_networkx_edge_labels(
+        graph,
+        pos,
+        edge_labels=edge_labels,
+        font_size=9
+    )
+
     plt.title("WAW Dependency Graph", fontsize=14, pad=20)
     plt.axis("off")
     plt.tight_layout()
@@ -121,4 +134,3 @@ def show_waw(instructions):
 # 6. MENJALANKAN PROGRAM
 if __name__ == "__main__":
     show_waw(instructions)
-
