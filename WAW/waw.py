@@ -5,8 +5,13 @@
 # ============================================================
 
 from dataclasses import dataclass
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 import networkx as nx
+import os
 
 
 # 1. DEFINISI INSTRUKSI
@@ -31,8 +36,8 @@ def has_waw_dependency(inst1, inst2):
     return inst1.destination == inst2.destination
 
 
-# 4. ANALISIS DEPENDENSI
-def show_waw(instructions):
+# 4. ANALISIS DEPENDENSI WAW
+def show_waw_dependencies(instructions):
     print("=" * 55)
     print("WAW (WRITE AFTER WRITE) DEPENDENCY ANALYSIS")
     print("=" * 55)
@@ -40,6 +45,7 @@ def show_waw(instructions):
     graph = nx.DiGraph()
     dependencies = []
 
+    # Membuat node instruksi
     for inst in instructions:
         label = (
             f"{inst.name}\n"
@@ -47,6 +53,7 @@ def show_waw(instructions):
         )
         graph.add_node(inst.name, label=label)
 
+    # Mencari dependensi WAW
     for i in range(len(instructions)):
         for j in range(i + 1, len(instructions)):
             first = instructions[i]
@@ -75,62 +82,72 @@ def show_waw(instructions):
 
     print(f"\nTotal dependensi WAW: {len(dependencies)}")
 
-    # 5. VISUALISASI DEPENDENCY GRAPH
+    # 5. MEMBUAT DEPENDENCY GRAPH
     pos = {
         "I1": (0, 1),
         "I2": (0, -1),
         "I3": (3, 1),
-        "I4": (3, -1)
+        "I4": (3, -1),
     }
 
     labels = nx.get_node_attributes(graph, "label")
 
-    plt.figure(figsize=(12, 6))
-
-    nx.draw_networkx_nodes(
-        graph, pos,
-        node_color="lightblue",
-        node_shape="s",
-        node_size=4500,
-        edgecolors="black"
-    )
-
-    nx.draw_networkx_labels(
-        graph, pos,
-        labels=labels,
-        font_size=9,
-        font_weight="bold"
-    )
-
-    nx.draw_networkx_edges(
-        graph, pos,
-        arrows=True,
-        arrowstyle="-|>",
-        arrowsize=25,
-        edge_color="black",
-        width=1.8,
-        node_size=4500
-    )
-
-    # Label pada setiap panah dependensi
     edge_labels = {
         (first, second): f"WAW ({register})"
         for first, second, register in dependencies
     }
 
+    plt.figure(figsize=(12, 6))
+
+    nx.draw_networkx_nodes(
+        graph,
+        pos,
+        node_size=3500,
+        node_color="lightblue",
+        node_shape="s",
+        edgecolors="black",
+    )
+
+    nx.draw_networkx_labels(
+        graph,
+        pos,
+        labels=labels,
+        font_size=9,
+        font_weight="bold",
+    )
+
+    nx.draw_networkx_edges(
+        graph,
+        pos,
+        arrows=True,
+        arrowstyle="-|>",
+        arrowsize=20,
+        node_size=3500,
+        edge_color="black",
+    )
+
     nx.draw_networkx_edge_labels(
         graph,
         pos,
         edge_labels=edge_labels,
-        font_size=9
+        font_size=9,
     )
 
-    plt.title("WAW Dependency Graph", fontsize=14, pad=20)
+    plt.title("WAW Dependency Graph", fontsize=14)
     plt.axis("off")
     plt.tight_layout()
-    plt.show()
+
+    # 6. MENYIMPAN GRAFIK KE FOLDER WAW
+    output_dir = "WAW"
+    os.makedirs(output_dir, exist_ok=True)
+
+    output_file = os.path.join(output_dir, "grafik_waw.png")
+    plt.savefig(output_file, dpi=300, bbox_inches="tight")
+    plt.close()
+
+    print(f"\nGrafik berhasil disimpan: {output_file}")
 
 
-# 6. MENJALANKAN PROGRAM
+# 7. MENJALANKAN PROGRAM
 if __name__ == "__main__":
-    show_waw(instructions)
+    show_waw_dependencies(instructions)
