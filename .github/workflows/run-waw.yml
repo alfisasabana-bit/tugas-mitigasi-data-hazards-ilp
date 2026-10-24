@@ -1,0 +1,55 @@
+
+name: Run WAW Analysis
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'WAW/waw.py'
+      - '.github/workflows/run-waw.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install matplotlib networkx
+
+      - name: Run WAW analysis
+        env:
+          MPLBACKEND: Agg
+        run: python WAW/waw.py
+
+      - name: Save graphs into repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add WAW/*.png
+          if ! git diff --cached --quiet; then
+            git commit -m "Add WAW analysis graphs"
+            git push
+          else
+            echo "No graph changes to save."
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasil-analisis-WAW
+          path: |
+            WAW/*.png
+            *.png
+          if-no-files-found: warn
