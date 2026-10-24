@@ -6,7 +6,6 @@
 
 from dataclasses import dataclass
 import matplotlib
-
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
@@ -70,23 +69,13 @@ def show_waw_dependencies(instructions):
                     f"WAW pada register {first.destination}"
                 )
 
-    if not dependencies:
-        print("Tidak ditemukan dependensi WAW.")
-
-    print("\nDaftar instruksi:")
-    for inst in instructions:
-        print(
-            f"{inst.name}: {inst.destination} = "
-            f"{' + '.join(inst.sources)}"
-        )
-
     print(f"\nTotal dependensi WAW: {len(dependencies)}")
 
-    # 5. MEMBUAT DEPENDENCY GRAPH
+    # 5. POSISI NODE AGAR KEDUA PANAH TERPISAH
     pos = {
         "I1": (0, 1),
-        "I2": (0, -1),
         "I3": (3, 1),
+        "I2": (0, -1),
         "I4": (3, -1),
     }
 
@@ -100,44 +89,40 @@ def show_waw_dependencies(instructions):
     plt.figure(figsize=(12, 6))
 
     nx.draw_networkx_nodes(
-        graph,
-        pos,
+        graph, pos,
         node_size=3500,
         node_color="lightblue",
         node_shape="s",
-        edgecolors="black",
+        edgecolors="black"
     )
 
     nx.draw_networkx_labels(
-        graph,
-        pos,
+        graph, pos,
         labels=labels,
         font_size=9,
-        font_weight="bold",
+        font_weight="bold"
     )
 
     nx.draw_networkx_edges(
-        graph,
-        pos,
+        graph, pos,
         arrows=True,
         arrowstyle="-|>",
-        arrowsize=20,
+        arrowsize=22,
         node_size=3500,
-        edge_color="black",
+        edge_color="black"
     )
 
     nx.draw_networkx_edge_labels(
-        graph,
-        pos,
+        graph, pos,
         edge_labels=edge_labels,
-        font_size=9,
+        font_size=10
     )
 
     plt.title("WAW Dependency Graph", fontsize=14)
     plt.axis("off")
     plt.tight_layout()
 
-    # 6. MENYIMPAN GRAFIK KE FOLDER WAW
+    # 6. SIMPAN GRAFIK
     output_dir = "WAW"
     os.makedirs(output_dir, exist_ok=True)
 
@@ -145,9 +130,9 @@ def show_waw_dependencies(instructions):
     plt.savefig(output_file, dpi=300, bbox_inches="tight")
     plt.close()
 
-    print(f"\nGrafik berhasil disimpan: {output_file}")
+    print(f"Grafik berhasil disimpan: {output_file}")
 
 
-# 7. MENJALANKAN PROGRAM
+# 7. JALANKAN PROGRAM
 if __name__ == "__main__":
     show_waw_dependencies(instructions)
