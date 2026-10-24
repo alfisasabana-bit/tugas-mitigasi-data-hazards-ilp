@@ -10,8 +10,12 @@ from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 
 
 # ============================================================
-# 1. STRUKTUR DATA INSTRUKSI
+# 1. KONFIGURASI DAN STRUKTUR DATA
 # ============================================================
+
+OUTPUT_DIR = Path("WAR")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
 
 @dataclass
 class Instruction:
@@ -21,7 +25,7 @@ class Instruction:
     operation: str
 
 
-# Instruksi awal sebelum mitigasi
+# Instruksi sebelum mitigasi
 instructions_before = [
     Instruction("I1", "R1", ["R2", "R3"], "ADD"),
     Instruction("I2", "R4", ["R5", "R6"], "SUB"),
@@ -35,9 +39,8 @@ instructions_before = [
 
 def detect_war(inst1, inst2):
     """
-    WAR (Write After Read) terjadi apabila:
-    - Instruksi lebih awal membaca suatu register.
-    - Instruksi berikutnya menulis register yang sama.
+    WAR terjadi ketika instruksi lebih awal membaca register
+    yang kemudian ditulis oleh instruksi berikutnya.
     """
     return inst2.destination in inst1.sources
 
@@ -56,7 +59,7 @@ def find_war_dependencies(instruction_list):
 
 
 # ============================================================
-# 3. MITIGASI MENGGUNAKAN REGISTER RENAMING
+# 3. MITIGASI REGISTER RENAMING
 # ============================================================
 
 def apply_register_renaming(instruction_list):
@@ -64,9 +67,8 @@ def apply_register_renaming(instruction_list):
     Contoh mitigasi:
     Tujuan penulisan I3 diubah dari R2 menjadi R9.
 
-    Catatan:
-    Register baru harus tersedia dan perubahan harus konsisten
-    dengan penggunaan register pada program sebenarnya.
+    Pada program nyata, pastikan register baru tersedia dan
+    perubahan tidak mengubah hasil perhitungan program.
     """
     mitigated = []
 
@@ -74,19 +76,19 @@ def apply_register_renaming(instruction_list):
         if inst.name == "I3":
             mitigated.append(
                 Instruction(
-                    inst.name,
-                    "R9",
-                    inst.sources.copy(),
-                    inst.operation,
+                    name=inst.name,
+                    destination="R9",
+                    sources=inst.sources.copy(),
+                    operation=inst.operation,
                 )
             )
         else:
             mitigated.append(
                 Instruction(
-                    inst.name,
-                    inst.destination,
-                    inst.sources.copy(),
-                    inst.operation,
+                    name=inst.name,
+                    destination=inst.destination,
+                    sources=inst.sources.copy(),
+                    operation=inst.operation,
                 )
             )
 
@@ -94,21 +96,21 @@ def apply_register_renaming(instruction_list):
 
 
 # ============================================================
-# 4. VISUALISASI GRAPH WAR
+# 4. GRAPH DEPENDENSI WAR
 # ============================================================
 
-def draw_war_graph(instruction_list, title, output_filename):
-    fig, ax = plt.subplots(figsize=(15, 8), dpi=180)
+def draw_war_graph(instruction_list, title, filename):
+    fig, ax = plt.subplots(figsize=(14, 7.5), dpi=180)
 
-    fig.patch.set_facecolor("#FFFFFF")
-    ax.set_facecolor("#FFFFFF")
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
     ax.set_xlim(0, 15)
     ax.set_ylim(0, 8)
     ax.axis("off")
 
     fig.suptitle(
         title,
-        fontsize=23,
+        fontsize=22,
         fontweight="bold",
         color="#142B52",
         y=0.95,
@@ -125,9 +127,7 @@ def draw_war_graph(instruction_list, title, output_filename):
 
     dependencies = find_war_dependencies(instruction_list)
 
-    # --------------------------------------------------------
-    # Kotak instruksi
-    # --------------------------------------------------------
+    # Menggambar kotak instruksi
     for inst in instruction_list:
         x, y = positions[inst.name]
 
@@ -149,7 +149,7 @@ def draw_war_graph(instruction_list, title, output_filename):
             inst.name,
             ha="center",
             va="center",
-            fontsize=20,
+            fontsize=19,
             fontweight="bold",
             color="#16345C",
             zorder=4,
@@ -162,14 +162,12 @@ def draw_war_graph(instruction_list, title, output_filename):
             f"{inst.operation}({', '.join(inst.sources)})",
             ha="center",
             va="center",
-            fontsize=12,
+            fontsize=11.5,
             color="#16345C",
             zorder=4,
         )
 
-    # --------------------------------------------------------
-    # Panah dependensi WAR
-    # --------------------------------------------------------
+    # Menggambar panah untuk setiap dependensi WAR
     for source_name, target_name, register in dependencies:
         x1, y1 = positions[source_name]
         x2, y2 = positions[target_name]
@@ -179,56 +177,48 @@ def draw_war_graph(instruction_list, title, output_filename):
             (x2 - 0.85, y2 - 0.9),
             connectionstyle="arc3,rad=0.28",
             arrowstyle="-|>",
-            mutation_scale=26,
-            linewidth=3.2,
+            mutation_scale=25,
+            linewidth=3,
             color="#B94752",
             zorder=2,
         )
         ax.add_patch(arrow)
 
-        label_x = (x1 + x2) / 2
-        label_y = 2.85
-
         ax.text(
-            label_x,
-            label_y,
+            (x1 + x2) / 2,
+            2.85,
             f"WAR: {source_name} → {target_name}\n"
             f"Register {register}",
             ha="center",
             va="center",
-            fontsize=12,
+            fontsize=11,
             fontweight="bold",
             color="#983844",
             bbox={
-                "boxstyle": "round,pad=0.45",
+                "boxstyle": "round,pad=0.4",
                 "facecolor": "#FFF1F2",
                 "edgecolor": "#E4A6AC",
-                "linewidth": 1.3,
+                "linewidth": 1.2,
             },
             zorder=5,
         )
 
-    # --------------------------------------------------------
-    # Keterangan di bawah graph
-    # --------------------------------------------------------
     if dependencies:
-        description = (
-            f"Ditemukan {len(dependencies)} dependensi WAR."
-        )
-        description_color = "#983844"
+        summary = f"Ditemukan {len(dependencies)} dependensi WAR."
+        summary_color = "#983844"
     else:
-        description = "Tidak ditemukan dependensi WAR."
-        description_color = "#24764B"
+        summary = "Tidak ditemukan dependensi WAR."
+        summary_color = "#24764B"
 
     ax.text(
         7.5,
         1.55,
-        description,
+        summary,
         ha="center",
         va="center",
         fontsize=14,
         fontweight="bold",
-        color=description_color,
+        color=summary_color,
     )
 
     ax.text(
@@ -248,31 +238,165 @@ def draw_war_graph(instruction_list, title, output_filename):
         bottom=0.08,
     )
 
-    # Simpan gambar di folder WAR dan root repository.
-    output_dir = Path("WAR")
-    output_dir.mkdir(parents=True, exist_ok=True)
-
+    # Simpan di folder WAR dan root repository
     fig.savefig(
-        output_dir / output_filename,
+        OUTPUT_DIR / filename,
         dpi=220,
         bbox_inches="tight",
         facecolor="white",
     )
 
     fig.savefig(
-        output_filename,
+        filename,
         dpi=220,
         bbox_inches="tight",
         facecolor="white",
     )
 
     plt.close(fig)
-
-    print(f"Grafik berhasil dibuat: {output_filename}")
+    print(f"Graph berhasil dibuat: {filename}")
 
 
 # ============================================================
-# 5. LAPORAN ANALISIS
+# 5. GRAFIK BATANG PERBANDINGAN
+# ============================================================
+
+def draw_comparison_chart(before_count, after_count):
+    labels = ["Sebelum Mitigasi", "Sesudah Mitigasi"]
+    values = [before_count, after_count]
+    colors = ["#B94752", "#39856B"]
+
+    fig, ax = plt.subplots(figsize=(10, 6), dpi=180)
+
+    bars = ax.bar(
+        labels,
+        values,
+        color=colors,
+        width=0.55,
+        edgecolor="white",
+        linewidth=1.5,
+    )
+
+    ax.set_title(
+        "Perbandingan Jumlah Dependensi WAR",
+        fontsize=18,
+        fontweight="bold",
+        color="#142B52",
+        pad=20,
+    )
+
+    ax.set_ylabel("Jumlah Dependensi WAR", fontsize=12)
+    ax.set_ylim(0, max(values + [1]) + 0.8)
+    ax.grid(axis="y", linestyle="--", alpha=0.3)
+    ax.set_axisbelow(True)
+
+    for bar, value in zip(bars, values):
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.08,
+            str(value),
+            ha="center",
+            va="bottom",
+            fontsize=14,
+            fontweight="bold",
+            color="#142B52",
+        )
+
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+
+    fig.tight_layout()
+
+    fig.savefig(
+        OUTPUT_DIR / "grafik_perbandingan_war.png",
+        dpi=220,
+        bbox_inches="tight",
+        facecolor="white",
+    )
+
+    fig.savefig(
+        "grafik_perbandingan_war.png",
+        dpi=220,
+        bbox_inches="tight",
+        facecolor="white",
+    )
+
+    plt.close(fig)
+    print("Grafik perbandingan WAR berhasil dibuat.")
+
+
+# ============================================================
+# 6. GRAFIK EFEKTIVITAS MITIGASI
+# ============================================================
+
+def draw_effectiveness_chart(before_count, after_count):
+    if before_count > 0:
+        reduction = (
+            (before_count - after_count) / before_count
+        ) * 100
+    else:
+        reduction = 0
+
+    fig, ax = plt.subplots(figsize=(9, 5.5), dpi=180)
+
+    bar_color = "#39856B" if reduction >= 0 else "#B94752"
+
+    ax.barh(
+        ["Penurunan Dependensi WAR"],
+        [reduction],
+        color=bar_color,
+        height=0.45,
+    )
+
+    ax.set_xlim(0, max(100, reduction + 10))
+    ax.set_xlabel("Penurunan (%)", fontsize=12)
+
+    ax.set_title(
+        "Efektivitas Mitigasi WAR",
+        fontsize=18,
+        fontweight="bold",
+        color="#142B52",
+        pad=18,
+    )
+
+    ax.text(
+        reduction + 2,
+        0,
+        f"{reduction:.1f}%",
+        va="center",
+        fontweight="bold",
+        fontsize=13,
+        color="#142B52",
+    )
+
+    ax.grid(axis="x", linestyle="--", alpha=0.3)
+    ax.set_axisbelow(True)
+
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+
+    fig.tight_layout()
+
+    fig.savefig(
+        OUTPUT_DIR / "grafik_efektivitas_war.png",
+        dpi=220,
+        bbox_inches="tight",
+        facecolor="white",
+    )
+
+    fig.savefig(
+        "grafik_efektivitas_war.png",
+        dpi=220,
+        bbox_inches="tight",
+        facecolor="white",
+    )
+
+    plt.close(fig)
+    print("Grafik efektivitas WAR berhasil dibuat.")
+
+
+# ============================================================
+# 7. LAPORAN ANALISIS
 # ============================================================
 
 def print_analysis(title, instruction_list):
@@ -307,7 +431,7 @@ def print_analysis(title, instruction_list):
 
 
 # ============================================================
-# 6. PROGRAM UTAMA
+# 8. PROGRAM UTAMA
 # ============================================================
 
 def main():
@@ -342,19 +466,42 @@ def main():
         "war_setelah_mitigasi.png",
     )
 
-    # Ringkasan perbandingan
+    # Buat dua grafik tambahan
+    draw_comparison_chart(
+        len(before_dependencies),
+        len(after_dependencies),
+    )
+
+    draw_effectiveness_chart(
+        len(before_dependencies),
+        len(after_dependencies),
+    )
+
+    # Ringkasan akhir
     print("\n" + "=" * 55)
     print("RINGKASAN PERBANDINGAN")
     print("=" * 55)
-    print(f"Dependensi sebelum mitigasi: {len(before_dependencies)}")
-    print(f"Dependensi sesudah mitigasi: {len(after_dependencies)}")
 
-    if len(before_dependencies) > len(after_dependencies):
-        print("Mitigasi mengurangi jumlah dependensi WAR.")
-    elif len(before_dependencies) == len(after_dependencies):
-        print("Jumlah dependensi WAR tidak berubah.")
-    else:
-        print("Jumlah dependensi WAR meningkat.")
+    print(
+        f"Dependensi sebelum mitigasi: "
+        f"{len(before_dependencies)}"
+    )
+    print(
+        f"Dependensi sesudah mitigasi: "
+        f"{len(after_dependencies)}"
+    )
+
+    print("\nFile grafik yang dihasilkan:")
+
+    files = [
+        "war_sebelum_mitigasi.png",
+        "war_setelah_mitigasi.png",
+        "grafik_perbandingan_war.png",
+        "grafik_efektivitas_war.png",
+    ]
+
+    for filename in files:
+        print(f"- WAR/{filename}")
 
     print("\nSemua proses analisis selesai.")
 
