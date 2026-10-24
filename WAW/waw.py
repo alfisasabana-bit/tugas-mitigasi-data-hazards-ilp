@@ -1,19 +1,15 @@
 
-# ============================================================
 # WAW (WRITE AFTER WRITE) HAZARD SIMULATOR
-# Analisis dan Mitigasi WAW dengan Register Renaming
-# ============================================================
+# Based on the ILP simulator from the lecturer
 
 from dataclasses import dataclass
+import os
 import matplotlib
 matplotlib.use("Agg")
-
 import matplotlib.pyplot as plt
 import networkx as nx
-import os
 
 
-# 1. DEFINISI INSTRUKSI
 @dataclass
 class Instruction:
     name: str
@@ -21,29 +17,39 @@ class Instruction:
     sources: list
 
 
-# 2. INSTRUCTION SET SEBELUM MITIGASI
-instructions_before = [
+# -------------------------------------------------
+# INSTRUCTION SET BEFORE MITIGATION
+# I5 and I6 write to the same register: R11
+# -------------------------------------------------
+
+instructions = [
     Instruction("I1", "R1", ["R2", "R3"]),
     Instruction("I2", "R4", ["R5", "R6"]),
-    Instruction("I3", "R1", ["R7", "R8"]),
-    Instruction("I4", "R4", ["R9", "R10"]),
+    Instruction("I3", "R7", ["R1", "R4"]),
+    Instruction("I4", "R8", ["R9", "R10"]),
+    Instruction("I5", "R11", ["R7", "R8"]),
+    Instruction("I6", "R11", ["R13", "R14"]),
 ]
 
 
-# 3. PEMERIKSAAN DEPENDENSI WAW
-def has_waw_dependency(inst1, inst2):
+# -------------------------------------------------
+# CHECK WAW DEPENDENCY
+# -------------------------------------------------
+
+def has_dependency(inst1, inst2):
+    # WAW: two instructions write to the same destination
     return inst1.destination == inst2.destination
 
 
-def find_waw_dependencies(instructions):
+def find_dependencies(instruction_list):
     dependencies = []
 
-    for i in range(len(instructions)):
-        for j in range(i + 1, len(instructions)):
-            first = instructions[i]
-            second = instructions[j]
+    for i in range(len(instruction_list)):
+        for j in range(i + 1, len(instruction_list)):
+            first = instruction_list[i]
+            second = instruction_list[j]
 
-            if has_waw_dependency(first, second):
+            if has_dependency(first, second):
                 dependencies.append(
                     (first.name, second.name, first.destination)
                 )
@@ -51,12 +57,14 @@ def find_waw_dependencies(instructions):
     return dependencies
 
 
-# 4. FUNGSI MEMBUAT GRAFIK DEPENDENSI
-def draw_dependency_graph(instructions, dependencies,
-                          title, output_file):
+# -------------------------------------------------
+# DRAW DEPENDENCY GRAPH
+# -------------------------------------------------
+
+def draw_dependency_graph(instruction_list, dependencies, filename, title):
     graph = nx.DiGraph()
 
-    for inst in instructions:
+    for inst in instruction_list:
         label = (
             f"{inst.name}\n"
             f"{inst.destination} = {' + '.join(inst.sources)}"
@@ -66,12 +74,10 @@ def draw_dependency_graph(instructions, dependencies,
     for first, second, register in dependencies:
         graph.add_edge(first, second, register=register)
 
-    # Mengatur posisi agar setiap pasangan mudah dibaca
-    pos = {}
-    for index, inst in enumerate(instructions):
-        row = index // 2
-        col = index % 2
-        pos[inst.name] = (col * 3, -row * 2)
+    positions = {
+        inst.name: (index % 3, -(index // 3))
+        for index, inst in enumerate(instruction_list)
+    }
 
     labels = nx.get_node_attributes(graph, "label")
     edge_labels = {
@@ -80,130 +86,216 @@ def draw_dependency_graph(instructions, dependencies,
     }
 
     plt.figure(figsize=(11, 6))
-
     nx.draw_networkx_nodes(
-        graph, pos,
-        node_size=3200,
+        graph, positions,
+        node_size=3000,
         node_color="lightblue",
-        node_shape="s",
         edgecolors="black"
     )
-
     nx.draw_networkx_labels(
-        graph, pos,
-        labels=labels,
-        font_size=9,
-        font_weight="bold"
+        graph, positions, labels=labels, font_size=9
     )
-
     nx.draw_networkx_edges(
-        graph, pos,
+        graph, positions,
         arrows=True,
         arrowstyle="-|>",
-        arrowsize=20,
-        node_size=3200,
-        edge_color="black"
+        arrowsize=20
     )
 
     if edge_labels:
         nx.draw_networkx_edge_labels(
-            graph, pos,
+            graph, positions,
             edge_labels=edge_labels,
             font_size=9
         )
 
-    plt.title(title, fontsize=14)
+    plt.title(title)
     plt.axis("off")
     plt.tight_layout()
-    plt.savefig(output_file, dpi=300, bbox_inches="tight")
+    plt.savefig(filename, dpi=300, bbox_inches="tight")
     plt.close()
 
-    print(f"Grafik disimpan: {output_file}")
+    print(f"Dependency graph saved: {filename}")
 
 
-# 5. ANALISIS SEBELUM MITIGASI
-dependencies_before = find_waw_dependencies(instructions_before)
+# -------------------------------------------------
+# SEQUENTIAL EXECUTION
+# -------------------------------------------------
 
-print("=" * 55)
-print("ANALISIS WAW SEBELUM MITIGASI")
-print("=" * 55)
+def sequential_execution(instruction_list):
+    print("\n" + "=" * 50)
+    print("SEQUENTIAL EXECUTION")
+    print("=" * 50)
 
-for first, second, register in dependencies_before:
-    print(f"{first} -> {second}: WAW pada register {register}")
+    for cycle, inst in enumerate(instruction_list, start=1):
+        print(
+            f"Cycle {cycle}: Executing {inst.name} "
+            f"({inst.destination} = {' + '.join(inst.sources)})"
+        )
 
-print(f"Total dependensi sebelum mitigasi: {len(dependencies_before)}")
-
-
-# 6. INSTRUCTION SET SETELAH REGISTER RENAMING
-# I3 dan I4 memakai register tujuan baru agar tidak
-# menulis ke register tujuan yang sama dengan instruksi sebelumnya.
-
-instructions_after = [
-    Instruction("I1", "R1", ["R2", "R3"]),
-    Instruction("I2", "R4", ["R5", "R6"]),
-    Instruction("I3", "R11", ["R7", "R8"]),
-    Instruction("I4", "R12", ["R9", "R10"]),
-]
-
-dependencies_after = find_waw_dependencies(instructions_after)
-
-print("\n" + "=" * 55)
-print("ANALISIS WAW SETELAH REGISTER RENAMING")
-print("=" * 55)
-
-if dependencies_after:
-    for first, second, register in dependencies_after:
-        print(f"{first} -> {second}: WAW pada register {register}")
-else:
-    print("Tidak ditemukan dependensi WAW.")
-
-print(f"Total dependensi setelah mitigasi: {len(dependencies_after)}")
+    print(f"\nTotal Sequential Cycles: {len(instruction_list)}")
+    return len(instruction_list)
 
 
-# 7. SIMPAN SEMUA GRAFIK
-output_dir = "WAW"
-os.makedirs(output_dir, exist_ok=True)
+# -------------------------------------------------
+# PARALLEL EXECUTION BASED ON WAW
+# -------------------------------------------------
 
-draw_dependency_graph(
-    instructions_before,
-    dependencies_before,
-    "WAW Dependency Graph",
-    os.path.join(output_dir, "grafik_waw.png")
-)
+def parallel_execution(instruction_list):
+    print("\n" + "=" * 50)
+    print("INSTRUCTION-LEVEL PARALLEL EXECUTION (WAW)")
+    print("=" * 50)
 
-draw_dependency_graph(
-    instructions_before,
-    dependencies_before,
-    "WAW Before Mitigation",
-    os.path.join(output_dir, "waw_sebelum_mitigasi.png")
-)
+    completed = set()
+    remaining = instruction_list.copy()
+    cycle = 0
 
-draw_dependency_graph(
-    instructions_after,
-    dependencies_after,
-    "WAW After Register Renaming",
-    os.path.join(output_dir, "waw_setelah_mitigasi.png")
-)
+    while remaining:
+        cycle += 1
+        current_cycle = []
+
+        for inst in remaining:
+            dependencies_satisfied = True
+
+            for previous in instruction_list:
+                if previous.name == inst.name:
+                    break
+
+                if has_dependency(previous, inst):
+                    if previous.name not in completed:
+                        dependencies_satisfied = False
+                        break
+
+            if dependencies_satisfied:
+                current_cycle.append(inst)
+
+        if not current_cycle:
+            raise RuntimeError("No instruction can be executed.")
+
+        print(f"\nCycle {cycle}:")
+
+        for inst in current_cycle:
+            print(
+                f"  -> {inst.name}: "
+                f"{inst.destination} = {' + '.join(inst.sources)}"
+            )
+
+        for inst in current_cycle:
+            completed.add(inst.name)
+            remaining.remove(inst)
+
+    print(f"\nTotal ILP Cycles: {cycle}")
+    return cycle
 
 
-# 8. GRAFIK PERBANDINGAN JUMLAH DEPENDENSI
-labels = ["Sebelum Mitigasi", "Setelah Mitigasi"]
-values = [len(dependencies_before), len(dependencies_after)]
+# -------------------------------------------------
+# DEPENDENCY ANALYSIS
+# -------------------------------------------------
 
-plt.figure(figsize=(8, 5))
-bars = plt.bar(labels, values)
+def show_dependencies(instruction_list):
+    print("\n" + "=" * 50)
+    print("WAW DEPENDENCY ANALYSIS")
+    print("=" * 50)
 
-plt.title("Perbandingan Dependensi WAW")
-plt.ylabel("Jumlah Dependensi")
-plt.ylim(0, max(values + [1]) + 1)
-plt.bar_label(bars, padding=3)
-plt.tight_layout()
+    dependencies = find_dependencies(instruction_list)
 
-comparison_file = os.path.join(
-    output_dir, "grafik_efektivitas_waw.png"
-)
-plt.savefig(comparison_file, dpi=300, bbox_inches="tight")
-plt.close()
+    if dependencies:
+        for first, second, register in dependencies:
+            print(
+                f"{first} -> {second}: "
+                f"WAW on register {register}"
+            )
+    else:
+        print("No WAW dependencies found.")
 
-print(f"Grafik disimpan: {comparison_file}")
-print("\nAnalisis WAW selesai.")
+    print(f"Total WAW dependencies: {len(dependencies)}")
+    return dependencies
+
+
+# -------------------------------------------------
+# MAIN PROGRAM
+# -------------------------------------------------
+
+def main():
+    os.makedirs("WAW", exist_ok=True)
+
+    print("\n" + "*" * 60)
+    print("      INSTRUCTION-LEVEL PARALLELISM SIMULATOR")
+    print("                   WAW HAZARD")
+    print("*" * 60)
+
+    print("\nInstruction Set:")
+
+    for inst in instructions:
+        print(
+            f"{inst.name}: {inst.destination} = "
+            f"{' + '.join(inst.sources)}"
+        )
+
+    # Before mitigation
+    dependencies_before = show_dependencies(instructions)
+
+    draw_dependency_graph(
+        instructions,
+        dependencies_before,
+        "WAW/waw_sebelum_mitigasi.png",
+        "WAW Dependency Graph Before Mitigation"
+    )
+
+    sequential_cycles = sequential_execution(instructions)
+    parallel_cycles = parallel_execution(instructions)
+
+    speedup = sequential_cycles / parallel_cycles
+    efficiency = speedup / len(instructions) * 100
+
+    print("\n" + "=" * 50)
+    print("PERFORMANCE COMPARISON")
+    print("=" * 50)
+    print(f"Sequential Cycles : {sequential_cycles}")
+    print(f"ILP Cycles        : {parallel_cycles}")
+    print(f"Speedup           : {speedup:.2f}x")
+    print(f"ILP Efficiency    : {efficiency:.2f}%")
+
+    # After mitigation: rename I6 destination from R11 to R12
+    instructions_after = [
+        Instruction(inst.name, inst.destination, inst.sources.copy())
+        for inst in instructions
+    ]
+    instructions_after[-1].destination = "R12"
+
+    print("\n" + "=" * 50)
+    print("AFTER REGISTER RENAMING")
+    print("=" * 50)
+
+    dependencies_after = show_dependencies(instructions_after)
+
+    draw_dependency_graph(
+        instructions_after,
+        dependencies_after,
+        "WAW/waw_setelah_mitigasi.png",
+        "WAW Dependency Graph After Register Renaming"
+    )
+
+    # Compare the number of WAW dependencies
+    labels = ["Before Mitigation", "After Mitigation"]
+    values = [len(dependencies_before), len(dependencies_after)]
+
+    plt.figure(figsize=(8, 5))
+    bars = plt.bar(labels, values)
+    plt.title("WAW Dependency Comparison")
+    plt.ylabel("Number of WAW Dependencies")
+    plt.ylim(0, max(values + [1]) + 1)
+    plt.bar_label(bars, padding=3)
+    plt.tight_layout()
+    plt.savefig(
+        "WAW/grafik_perbandingan_waw.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+    plt.close()
+
+    print("\nWAW analysis completed.")
+
+
+if __name__ == "__main__":
+    main()
