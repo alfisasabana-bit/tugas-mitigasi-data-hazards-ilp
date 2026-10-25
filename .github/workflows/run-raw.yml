@@ -22,9 +22,13 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: |
-          pip install matplotlib networkx
+        run: pip install matplotlib networkx
 
       - name: Run RAW Analysis
-        run: |
-          python RAW/raw.py
+        run: python RAW/raw.py
+
+      - name: Upload RAW Graph
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-dependency-graph
+          path: raw_dependency_graph.png
