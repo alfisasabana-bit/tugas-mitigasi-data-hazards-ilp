@@ -38,26 +38,26 @@ instructions = [
 
 def has_raw_dependency(inst1, inst2):
     """
-    RAW terjadi jika instruksi kedua membaca
+    RAW terjadi ketika instruksi kedua membaca
     register yang ditulis instruksi pertama.
     """
     return inst1.destination in inst2.sources
 
 
 # ============================================================
-# 4. ANALISIS DEPENDENSI
+# 4. ANALISIS DEPENDENSI RAW
 # ============================================================
 
 def show_raw(instructions):
 
-    print("=" * 60)
+    print("=" * 55)
     print("RAW (READ AFTER WRITE) DEPENDENCY ANALYSIS")
-    print("=" * 60)
+    print("=" * 55)
 
     graph = nx.DiGraph()
     dependencies = []
 
-    # Menambahkan node untuk setiap instruksi
+    # Membuat node untuk setiap instruksi
     for inst in instructions:
         label = (
             f"{inst.name}\n"
@@ -108,7 +108,6 @@ def show_raw(instructions):
     # 5. VISUALISASI DEPENDENCY GRAPH
     # ========================================================
 
-    # Posisi node dibuat manual agar rapi
     pos = {
         "I1": (0, 1),
         "I2": (2, 1),
@@ -120,7 +119,6 @@ def show_raw(instructions):
 
     plt.figure(figsize=(12, 5))
 
-    # Menggambar node berbentuk kotak
     nx.draw_networkx_nodes(
         graph,
         pos,
@@ -131,7 +129,6 @@ def show_raw(instructions):
         linewidths=1.5
     )
 
-    # Menampilkan label instruksi
     nx.draw_networkx_labels(
         graph,
         pos,
@@ -140,18 +137,29 @@ def show_raw(instructions):
         font_weight="bold"
     )
 
-    # Menggambar panah dependensi
     nx.draw_networkx_edges(
         graph,
         pos,
-        edgelist=list(graph.edges()),
         arrows=True,
         arrowstyle="-|>",
         arrowsize=25,
         edge_color="black",
         width=1.8,
-        node_size=5000,
-        connectionstyle="arc3,rad=0.0"
+        node_size=5000
+    )
+
+    # Label register pada setiap panah
+    edge_labels = {
+        (source, target): data["register"]
+        for source, target, data in graph.edges(data=True)
+    }
+
+    nx.draw_networkx_edge_labels(
+        graph,
+        pos,
+        edge_labels=edge_labels,
+        font_size=10,
+        font_color="red"
     )
 
     plt.title(
@@ -165,7 +173,17 @@ def show_raw(instructions):
     plt.ylim(-2, 2)
     plt.axis("off")
     plt.tight_layout()
+
+    # Menyimpan grafik sebagai file gambar
+    plt.savefig(
+        "raw_dependency_graph.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
     plt.show()
+
+    print("\nGrafik disimpan sebagai raw_dependency_graph.png")
 
 
 # ============================================================
